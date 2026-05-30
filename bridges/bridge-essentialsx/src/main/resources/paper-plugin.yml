@@ -1,0 +1,14 @@
+name: ConduitEssentialsX
+version: "${version}"
+description: EssentialsX economy bridge for Conduit
+authors: [Alazso]
+api-version: "26.1"
+main: so.alaz.conduit.bridge.essentialsx.EssentialsXBridgePlugin
+dependencies:
+  server:
+    Conduit:
+      load: BEFORE
+      required: true
+    Essentials:
+      load: BEFORE
+      required: true
