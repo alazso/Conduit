@@ -10,9 +10,6 @@ loader: so.alaz.conduit.core.ConduitLoader
 main: so.alaz.conduit.core.ConduitPlugin
 dependencies:
   server:
-    EssentialsX:
-      load: BEFORE
-      required: false
     PlaceholderAPI:
       load: BEFORE
       required: false
