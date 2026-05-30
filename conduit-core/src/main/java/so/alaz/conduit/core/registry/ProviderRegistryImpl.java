@@ -7,7 +7,9 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import so.alaz.conduit.api.Conduit;
 import so.alaz.conduit.api.caller.CallerToken;
+import so.alaz.conduit.api.economy.Economy;
 import so.alaz.conduit.api.event.ActiveProviderChangeEvent;
 import so.alaz.conduit.api.event.EconomyTransactionInterceptor;
 import so.alaz.conduit.api.event.ProviderRegisterEvent;
@@ -15,6 +17,7 @@ import so.alaz.conduit.api.event.ProviderUnregisterEvent;
 import so.alaz.conduit.api.exception.ProviderNotFoundException;
 import so.alaz.conduit.api.registry.ProviderInfo;
 import so.alaz.conduit.api.registry.ProviderRegistry;
+import so.alaz.conduit.core.economy.EconomyDispatcher;
 import so.alaz.conduit.core.events.EventPublisher;
 import so.alaz.conduit.core.interceptor.InterceptorBus;
 
@@ -55,11 +58,16 @@ public final class ProviderRegistryImpl implements ProviderRegistry {
     private final Map<Class<?>, List<Consumer<?>>> pending = new HashMap<>();
     private final Map<Plugin, CallerToken> callers = new IdentityHashMap<>();
     private final Set<Class<?>> trackedBases = new LinkedHashSet<>();
+    // Memoised dispatch decorators, keyed by the raw provider instance, so every
+    // resolution of the same provider returns the same decorated object (stable
+    // identity) and dispatch applies uniformly across all economy interfaces.
+    private final Map<Economy, Economy> economyDispatchers = new IdentityHashMap<>();
 
     private final EventPublisher events;
     private final InterceptorBus interceptors;
 
     private long seq;
+    private volatile @Nullable String economyProviderOverride;
 
     /**
      * @param events       publisher for registry lifecycle events
@@ -104,7 +112,7 @@ public final class ProviderRegistryImpl implements ProviderRegistry {
             List<T> all = resolveAll(service);
             Registration active = activeRegistration(service);
             return new ProviderInfo<>(
-                    Optional.ofNullable(active == null ? null : service.cast(active.provider())),
+                    Optional.ofNullable(active == null ? null : service.cast(decorate(active.provider()))),
                     all,
                     active == null ? null : active.priority(),
                     active == null ? null : active.plugin());
@@ -118,6 +126,9 @@ public final class ProviderRegistryImpl implements ProviderRegistry {
         if (!service.isInstance(provider)) {
             throw new IllegalArgumentException(
                     "Provider " + provider.getClass().getName() + " is not an instance of service " + service.getName());
+        }
+        if (provider instanceof Economy economy) {
+            requireCompatibleApiVersion(economy);
         }
 
         List<Event> toPublish = new ArrayList<>();
@@ -156,6 +167,9 @@ public final class ProviderRegistryImpl implements ProviderRegistry {
                 return;
             }
             instances.remove(provider);
+            if (provider instanceof Economy) {
+                economyDispatchers.remove(provider);
+            }
             Map<Class<?>, Object> after = snapshotActives();
 
             toPublish.add(new ProviderUnregisterEvent<>(service, provider));
@@ -204,17 +218,85 @@ public final class ProviderRegistryImpl implements ProviderRegistry {
     @SuppressWarnings("unchecked")
     private <T> @Nullable T resolveActive(Class<T> service) {
         Registration active = activeRegistration(service);
-        return active == null ? null : (T) active.provider();
+        return active == null ? null : (T) decorate(active.provider());
+    }
+
+    /**
+     * Wrap economy providers in the dispatch decorator (memoised per raw
+     * instance for stable identity); pass non-economy providers through
+     * unchanged. Always invoked under {@code lock}.
+     */
+    private Object decorate(Object provider) {
+        if (provider instanceof EconomyDispatcher) {
+            return provider;
+        }
+        if (provider instanceof Economy economy) {
+            return economyDispatchers.computeIfAbsent(economy, e -> new EconomyDispatcher(e, interceptors, events));
+        }
+        return provider;
+    }
+
+    private static void requireCompatibleApiVersion(Economy economy) {
+        String required = economy.requiredApiVersion();
+        if (!apiVersionSatisfied(required)) {
+            throw new IllegalArgumentException(
+                    "Economy provider '" + economy.getName() + "' requires Conduit API " + required
+                            + " but this runtime provides " + Conduit.API_VERSION
+                            + "; refusing to register an incompatible provider.");
+        }
+    }
+
+    private static boolean apiVersionSatisfied(String required) {
+        int[] req = parseMajorMinor(required);
+        int[] cur = parseMajorMinor(Conduit.API_VERSION);
+        if (req[0] != cur[0]) {
+            return req[0] < cur[0];
+        }
+        return req[1] <= cur[1];
+    }
+
+    private static int[] parseMajorMinor(String version) {
+        String[] parts = version.trim().split("\\.");
+        try {
+            int major = parts.length > 0 && !parts[0].isEmpty() ? Integer.parseInt(parts[0]) : 0;
+            int minor = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+            return new int[]{major, minor};
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Unparseable API version: " + version, e);
+        }
     }
 
     private @Nullable Registration activeRegistration(Class<?> service) {
+        String override = economyProviderOverride;
         Registration best = null;
+        Registration overridden = null;
         for (Registration r : registrations) {
-            if (service.isAssignableFrom(r.service()) && (best == null || higherPriority(r, best))) {
+            if (!service.isAssignableFrom(r.service())) {
+                continue;
+            }
+            if (best == null || higherPriority(r, best)) {
                 best = r;
             }
+            if (override != null
+                    && r.provider() instanceof Economy economy
+                    && economy.getName().equalsIgnoreCase(override)
+                    && (overridden == null || higherPriority(r, overridden))) {
+                overridden = r;
+            }
         }
-        return best;
+        return overridden != null ? overridden : best;
+    }
+
+    /**
+     * Force economy resolution to prefer the named provider regardless of
+     * priority. {@code null} restores automatic (priority-based) selection.
+     *
+     * @param name the provider name to prefer, or {@code null}
+     */
+    public void setEconomyProviderOverride(@Nullable String name) {
+        synchronized (lock) {
+            this.economyProviderOverride = name;
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -230,7 +312,7 @@ public final class ProviderRegistryImpl implements ProviderRegistry {
                 .thenComparingLong(Registration::seq));
         List<T> out = new ArrayList<>(matches.size());
         for (Registration r : matches) {
-            out.add((T) r.provider());
+            out.add((T) decorate(r.provider()));
         }
         return List.copyOf(out);
     }
