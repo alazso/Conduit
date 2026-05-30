@@ -39,6 +39,8 @@ public final class ConduitPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        saveDefaultConfig();
+
         this.scheduler = new SchedulerAdapterImpl(this);
         this.eventPublisher = new BukkitEventPublisher(getServer(), scheduler);
         this.interceptors = new InterceptorBus();
@@ -47,6 +49,7 @@ public final class ConduitPlugin extends JavaPlugin {
         Conduit.init(registry);
         Conduit.setEconomyDecorator(this::decorate);
 
+        applyProviderOverride();
         registerCommand();
         registerPlaceholders();
         startMetrics();
@@ -76,15 +79,34 @@ public final class ConduitPlugin extends JavaPlugin {
         getSLF4JLogger().info("Registered PlaceholderAPI expansion.");
     }
 
+    private void applyProviderOverride() {
+        String override = getConfig().getString("economy.provider-override", "").trim();
+        registry.setEconomyProviderOverride(override.isEmpty() ? null : override);
+        if (!override.isEmpty()) {
+            getSLF4JLogger().info("Economy provider override active: '{}'.", override);
+        }
+    }
+
     private void startMetrics() {
+        if (!getConfig().getBoolean("metrics.enabled", false)) {
+            return;
+        }
+        int bstatsId = getConfig().getInt("metrics.bstats-id", 0);
+        if (bstatsId <= 0) {
+            getSLF4JLogger().warn("Metrics enabled but metrics.bstats-id is unset; skipping bStats submission.");
+            return;
+        }
         if (!isClassPresent("org.bstats.bukkit.Metrics")) {
             return;
         }
-        this.metrics = new MetricsService(this,
+        this.metrics = new MetricsService(this, bstatsId,
                 () -> registry.getProvider(Economy.class).map(Economy::getName).orElse("none"));
     }
 
     private void startUpdateChecker() {
+        if (!getConfig().getBoolean("update-checker.enabled", true)) {
+            return;
+        }
         new UpdateChecker(getPluginMeta().getVersion(), LATEST_RELEASE_ENDPOINT,
                 scheduler::runAsync, getSLF4JLogger()).checkAsync();
     }
