@@ -8,6 +8,8 @@ import so.alaz.conduit.api.model.Balance;
 import so.alaz.conduit.api.result.EconomyResult;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -173,5 +175,19 @@ public abstract class AbstractEconomyConformanceTest {
             assertThat(success.currency()).isEqualTo(economy.defaultCurrency());
             assertThat(success.transaction()).isNotNull();
         });
+    }
+
+    @Test
+    void getBalances_returns_each_requested_account() {
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        fund(a, "10.00");
+        fund(b, "20.00");
+
+        Map<UUID, Balance> balances = economy.getBalances(List.of(a, b)).join();
+
+        assertThat(balances).containsOnlyKeys(a, b);
+        assertThat(balances.get(a).amount()).isEqualByComparingTo("10.00");
+        assertThat(balances.get(b).amount()).isEqualByComparingTo("20.00");
     }
 }

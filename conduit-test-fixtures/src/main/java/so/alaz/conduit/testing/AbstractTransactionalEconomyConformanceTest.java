@@ -97,4 +97,52 @@ public abstract class AbstractTransactionalEconomyConformanceTest {
 
         assertThat(economy.getBalance(uuid).join().amount()).isEqualByComparingTo("20.00");
     }
+
+    @Test
+    void same_operationId_on_different_accounts_executes_independently() {
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        fund(a, "0.00");
+        fund(b, "0.00");
+        UUID op = UUID.randomUUID();
+
+        // The contract scopes operationId uniqueness to the primary account, so
+        // the same id on a different account must NOT be treated as a replay.
+        EconomyResult first = economy.depositIdempotent(a, money("10.00"), op).join();
+        EconomyResult second = economy.depositIdempotent(b, money("10.00"), op).join();
+
+        assertThat(first).isInstanceOf(EconomyResult.Success.class);
+        assertThat(second).isInstanceOf(EconomyResult.Success.class);
+        assertThat(economy.getBalance(a).join().amount()).isEqualByComparingTo("10.00");
+        assertThat(economy.getBalance(b).join().amount()).isEqualByComparingTo("10.00");
+    }
+
+    @Test
+    void transferIdempotent_does_not_double_apply_on_replay() {
+        UUID from = UUID.randomUUID();
+        UUID to = UUID.randomUUID();
+        fund(from, "100.00");
+        fund(to, "0.00");
+        UUID op = UUID.randomUUID();
+
+        economy.transferIdempotent(from, to, money("30.00"), op).join();
+        economy.transferIdempotent(from, to, money("30.00"), op).join();
+
+        assertThat(economy.getBalance(from).join().amount()).isEqualByComparingTo("70.00");
+        assertThat(economy.getBalance(to).join().amount()).isEqualByComparingTo("30.00");
+    }
+
+    @Test
+    void transferIdempotent_distinct_ids_apply_each_time() {
+        UUID from = UUID.randomUUID();
+        UUID to = UUID.randomUUID();
+        fund(from, "100.00");
+        fund(to, "0.00");
+
+        economy.transferIdempotent(from, to, money("30.00"), UUID.randomUUID()).join();
+        economy.transferIdempotent(from, to, money("30.00"), UUID.randomUUID()).join();
+
+        assertThat(economy.getBalance(from).join().amount()).isEqualByComparingTo("40.00");
+        assertThat(economy.getBalance(to).join().amount()).isEqualByComparingTo("60.00");
+    }
 }

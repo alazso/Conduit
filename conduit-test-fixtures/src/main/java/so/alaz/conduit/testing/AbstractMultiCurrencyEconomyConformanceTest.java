@@ -90,4 +90,28 @@ public abstract class AbstractMultiCurrencyEconomyConformanceTest {
         assertThat(economy.accountSupportsCurrency(uuid, supportedNonDefaultCurrency()).join()).isTrue();
         assertThat(economy.accountSupportsCurrency(uuid, unsupportedCurrency()).join()).isFalse();
     }
+
+    @Test
+    void transfer_in_unsupported_currency_resolves_to_CurrencyNotSupported_without_debit() {
+        UUID from = UUID.randomUUID();
+        UUID to = UUID.randomUUID();
+        economy.createAccount(from).join();
+        economy.createAccount(to).join();
+        economy.deposit(from, money("50.00")).join();
+
+        EconomyResult result = economy.transfer(from, to, money("5.00"), unsupportedCurrency()).join();
+
+        assertThat(result).isInstanceOf(EconomyResult.CurrencyNotSupported.class);
+        // Source must not be debited when the currency is unsupported.
+        assertThat(economy.getBalance(from).join().amount()).isEqualByComparingTo("50.00");
+    }
+
+    @Test
+    void withdraw_in_unsupported_currency_resolves_to_CurrencyNotSupported() {
+        UUID uuid = UUID.randomUUID();
+        economy.createAccount(uuid).join();
+
+        EconomyResult result = economy.withdraw(uuid, money("5.00"), unsupportedCurrency()).join();
+        assertThat(result).isInstanceOf(EconomyResult.CurrencyNotSupported.class);
+    }
 }

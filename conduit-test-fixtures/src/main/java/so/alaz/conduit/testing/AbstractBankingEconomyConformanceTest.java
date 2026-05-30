@@ -98,4 +98,36 @@ public abstract class AbstractBankingEconomyConformanceTest {
         economy.setBankMemberPermission("vault", member, AccountPermission.DEPOSIT, false).join();
         assertThat(economy.playerHasBankPermission("vault", member, AccountPermission.DEPOSIT).join()).isFalse();
     }
+
+    @Test
+    void granting_OWNER_implies_every_permission() {
+        UUID owner = UUID.randomUUID();
+        UUID coOwner = UUID.randomUUID();
+        economy.createBank("vault", owner).join();
+
+        economy.setBankMemberPermission("vault", coOwner, AccountPermission.OWNER, true).join();
+
+        assertThat(economy.playerHasBankPermission("vault", coOwner, AccountPermission.DEPOSIT).join()).isTrue();
+        assertThat(economy.playerHasBankPermission("vault", coOwner, AccountPermission.WITHDRAW).join()).isTrue();
+    }
+
+    @Test
+    void revoking_ALL_clears_non_owner_permissions() {
+        UUID owner = UUID.randomUUID();
+        UUID member = UUID.randomUUID();
+        economy.createBank("vault", owner).join();
+        economy.setBankMemberPermission("vault", member, AccountPermission.DEPOSIT, true).join();
+        economy.setBankMemberPermission("vault", member, AccountPermission.WITHDRAW, true).join();
+
+        economy.setBankMemberPermission("vault", member, AccountPermission.ALL, false).join();
+
+        assertThat(economy.playerHasBankPermission("vault", member, AccountPermission.DEPOSIT).join()).isFalse();
+        assertThat(economy.playerHasBankPermission("vault", member, AccountPermission.WITHDRAW).join()).isFalse();
+    }
+
+    @Test
+    void deleting_a_nonexistent_bank_does_not_throw() {
+        EconomyResult result = economy.deleteBank("ghost").join();
+        assertThat(result).isInstanceOf(EconomyResult.ProviderError.class);
+    }
 }
