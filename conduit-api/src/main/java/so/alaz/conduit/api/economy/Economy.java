@@ -11,6 +11,9 @@ import so.alaz.conduit.api.model.Currency;
 import so.alaz.conduit.api.result.EconomyResult;
 
 import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -103,6 +106,31 @@ public interface Economy extends Capable {
      * @return a future resolving the account's balance in the default currency
      */
     @NotNull CompletableFuture<Balance> getBalance(@NotNull UUID uuid);
+
+    /**
+     * Fetch several balances at once in the default currency.
+     *
+     * <p>The default implementation fans out to {@link #getBalance(UUID)};
+     * providers backed by a database should override this with a single bulk
+     * query to avoid N+1 round-trips (leaderboards, GUIs). The returned map
+     * preserves the iteration order of {@code uuids} and never contains
+     * {@code null} values.
+     *
+     * @param uuids the account UUIDs to query
+     * @return a future resolving a map of UUID to balance
+     */
+    default @NotNull CompletableFuture<Map<UUID, Balance>> getBalances(@NotNull Collection<UUID> uuids) {
+        Map<UUID, CompletableFuture<Balance>> futures = new LinkedHashMap<>();
+        for (UUID uuid : uuids) {
+            futures.computeIfAbsent(uuid, this::getBalance);
+        }
+        return CompletableFuture.allOf(futures.values().toArray(CompletableFuture[]::new))
+                .thenApply(ignored -> {
+                    Map<UUID, Balance> out = new LinkedHashMap<>();
+                    futures.forEach((uuid, future) -> out.put(uuid, future.join()));
+                    return out;
+                });
+    }
 
     // --- Pre-flight Checks ---
 
