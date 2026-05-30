@@ -1,0 +1,11 @@
+name: ConduitEnderFeeExample
+version: "${version}"
+description: Charges a Conduit economy fee to open an ender chest (consumer-only example)
+authors: [Alazso]
+api-version: "26.1"
+main: so.alaz.conduit.example.enderfee.ConduitEnderFeePlugin
+dependencies:
+  server:
+    Conduit:
+      load: BEFORE
+      required: true
