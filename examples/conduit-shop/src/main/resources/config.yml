@@ -1,0 +1,8 @@
+# Which Conduit economy this shop charges against.
+#
+# Set this to an economy's registered name (run /economies in-game to see the
+# valid names, e.g. "ConduitExampleEconomy" or "ConduitExamplePoints").
+#
+# Leave it blank or set it to "auto" to follow whichever provider Conduit
+# resolves as the active one (highest ServicePriority).
+economy: ""

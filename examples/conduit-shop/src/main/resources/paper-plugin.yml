@@ -1,0 +1,11 @@
+name: ConduitShopExample
+version: "${version}"
+description: Case B example — server owner selects which Conduit economy the shop uses
+authors: [Alazso]
+api-version: "26.1"
+main: so.alaz.conduit.example.shop.ConduitShopPlugin
+dependencies:
+  server:
+    Conduit:
+      load: BEFORE
+      required: true
