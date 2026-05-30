@@ -1,0 +1,18 @@
+name: Conduit
+version: "${version}"
+description: Gold-standard Economy abstraction for Paper/Folia plugins
+authors: [Alazso]
+website: https://github.com/alazso/conduit
+api-version: "26.1"
+load: STARTUP
+bootstrapper: so.alaz.conduit.core.ConduitBootstrapper
+loader: so.alaz.conduit.core.ConduitLoader
+main: so.alaz.conduit.core.ConduitPlugin
+dependencies:
+  server:
+    EssentialsX:
+      load: BEFORE
+      required: false
+    PlaceholderAPI:
+      load: BEFORE
+      required: false
