@@ -86,6 +86,8 @@ final class PointsPayCommand extends Command {
                     ConduitPointsPlugin.error("No account found for " + notFound.uuid() + "."));
             case EconomyResult.CurrencyNotSupported unsupported -> payer.sendMessage(
                     ConduitPointsPlugin.error("Currency not supported: " + unsupported.currency().id() + "."));
+            case EconomyResult.Rejected rejected -> payer.sendMessage(
+                    ConduitPointsPlugin.error("Payment blocked: " + rejected.reason()));
             case EconomyResult.ProviderError providerError -> payer.sendMessage(
                     ConduitPointsPlugin.error("Provider error: " + providerError.message()));
         }

@@ -88,6 +88,8 @@ public final class ConduitEnderFeePlugin extends JavaPlugin implements Listener 
                     "You don't have an economy account yet."));
             case EconomyResult.CurrencyNotSupported unsupported -> player.sendMessage(error(
                     "Currency not supported: " + unsupported.currency().id() + "."));
+            case EconomyResult.Rejected rejected -> player.sendMessage(error(
+                    "Access denied: " + rejected.reason()));
             case EconomyResult.ProviderError providerError -> player.sendMessage(error(
                     "Economy error: " + providerError.message()));
         }

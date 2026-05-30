@@ -69,6 +69,8 @@ final class BuyCommand extends Command {
                     "You don't have an account in " + economy.getName() + "."));
             case EconomyResult.CurrencyNotSupported unsupported -> buyer.sendMessage(ConduitShopPlugin.error(
                     "Currency not supported: " + unsupported.currency().id() + "."));
+            case EconomyResult.Rejected rejected -> buyer.sendMessage(ConduitShopPlugin.error(
+                    "Purchase blocked: " + rejected.reason()));
             case EconomyResult.ProviderError providerError -> buyer.sendMessage(ConduitShopPlugin.error(
                     "Economy error: " + providerError.message()));
         }
