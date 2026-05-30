@@ -83,12 +83,14 @@ class EconomyDispatcherTest {
     }
 
     @Test
-    void interceptor_veto_aborts_and_publishes_no_event() {
+    void interceptor_veto_aborts_with_Rejected_and_publishes_no_event() {
         interceptors.register(ctx -> false, TestPlugins.named("Guard"), ServicePriority.Normal);
 
         EconomyResult result = dispatcher.withdraw(alice, new BigDecimal("10.00")).join();
 
-        assertThat(result).isInstanceOf(EconomyResult.ProviderError.class);
+        // A policy veto is a Rejected, not a ProviderError (the backend was never asked).
+        assertThat(result).isInstanceOf(EconomyResult.Rejected.class);
+        assertThat(((EconomyResult.Rejected) result).reason()).contains("interceptor");
         // Balance untouched; no event fired.
         assertThat(backing.getBalance(alice).join().amount()).isEqualByComparingTo("100.00");
         assertThat(events.ofType(EconomyTransactionEvent.class)).isEmpty();
