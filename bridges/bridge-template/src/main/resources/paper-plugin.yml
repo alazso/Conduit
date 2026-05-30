@@ -1,0 +1,11 @@
+name: ConduitTemplateBridge
+version: "${version}"
+description: Reference Conduit economy bridge template
+authors: [Alazso]
+api-version: "26.1"
+main: so.alaz.conduit.bridge.template.TemplateBridgePlugin
+dependencies:
+  server:
+    Conduit:
+      load: BEFORE
+      required: true
