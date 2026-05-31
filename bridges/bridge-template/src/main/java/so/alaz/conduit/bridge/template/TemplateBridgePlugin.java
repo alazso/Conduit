@@ -1,5 +1,7 @@
 package so.alaz.conduit.bridge.template;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -19,7 +21,8 @@ public final class TemplateBridgePlugin extends JavaPlugin {
     public void onEnable() {
         this.economy = new TemplateEconomy();
         Conduit.getRegistry().register(Economy.class, economy, this, ServicePriority.Normal);
-        getSLF4JLogger().info("Registered Template economy provider with Conduit.");
+        getComponentLogger().info(Component.text(
+                "Registered Template economy provider with Conduit.", NamedTextColor.GREEN));
     }
 
     @Override

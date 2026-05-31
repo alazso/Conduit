@@ -1,8 +1,10 @@
 package so.alaz.conduit.core.update;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -27,11 +29,11 @@ public final class UpdateChecker {
     private final String currentVersion;
     private final URI latestReleaseEndpoint;
     private final Executor executor;
-    private final Logger logger;
+    private final ComponentLogger logger;
     private final HttpClient httpClient;
 
     public UpdateChecker(@NotNull String currentVersion, @NotNull URI latestReleaseEndpoint,
-                         @NotNull Executor executor, @NotNull Logger logger) {
+                         @NotNull Executor executor, @NotNull ComponentLogger logger) {
         this.currentVersion = currentVersion;
         this.latestReleaseEndpoint = latestReleaseEndpoint;
         this.executor = executor;
@@ -74,7 +76,11 @@ public final class UpdateChecker {
             SemanticVersion latest = SemanticVersion.parse(matcher.group(1));
             SemanticVersion current = SemanticVersion.parse(currentVersion);
             if (latest.isNewerThan(current)) {
-                logger.info("A newer Conduit release is available: {} (running {}).", latest, current);
+                logger.info(Component.text("A newer Conduit release is available: ", NamedTextColor.YELLOW)
+                        .append(Component.text(latest.toString(), NamedTextColor.AQUA))
+                        .append(Component.text(" (running ", NamedTextColor.YELLOW))
+                        .append(Component.text(current.toString(), NamedTextColor.GRAY))
+                        .append(Component.text(").", NamedTextColor.YELLOW)));
             }
         } catch (IllegalArgumentException e) {
             logger.debug("Update check: unparseable version ({})", e.getMessage());

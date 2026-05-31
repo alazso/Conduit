@@ -1,6 +1,8 @@
 package so.alaz.conduit.bridge.essentialsx;
 
 import net.ess3.api.IEssentials;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -22,7 +24,9 @@ public final class EssentialsXBridgePlugin extends JavaPlugin {
     public void onEnable() {
         Plugin essPlugin = getServer().getPluginManager().getPlugin("Essentials");
         if (!(essPlugin instanceof IEssentials essentials)) {
-            getSLF4JLogger().error("EssentialsX not found; the Conduit EssentialsX bridge will not register.");
+            getComponentLogger().error(Component.text(
+                    "EssentialsX not found; the Conduit EssentialsX bridge will not register.",
+                    NamedTextColor.RED));
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
@@ -31,7 +35,8 @@ public final class EssentialsXBridgePlugin extends JavaPlugin {
         this.economy = new EssentialsXEconomy(new EssentialsXBackend(essentials), asyncExecutor);
 
         Conduit.getRegistry().register(Economy.class, economy, this, ServicePriority.Normal);
-        getSLF4JLogger().info("Registered EssentialsX economy provider with Conduit.");
+        getComponentLogger().info(Component.text(
+                "Registered EssentialsX economy provider with Conduit.", NamedTextColor.GREEN));
     }
 
     @Override

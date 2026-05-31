@@ -1,5 +1,7 @@
 package so.alaz.conduit.core;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
@@ -55,7 +57,9 @@ public final class ConduitPlugin extends JavaPlugin {
         startMetrics();
         startUpdateChecker();
 
-        getSLF4JLogger().info("Conduit {} enabled — economy abstraction ready.", getPluginMeta().getVersion());
+        getComponentLogger().info(Component.text("Conduit ", NamedTextColor.GREEN)
+                .append(Component.text(getPluginMeta().getVersion(), NamedTextColor.AQUA))
+                .append(Component.text(" enabled — economy abstraction ready.", NamedTextColor.GREEN)));
     }
 
     @Override
@@ -76,14 +80,16 @@ public final class ConduitPlugin extends JavaPlugin {
         }
         ConduitPlaceholderExpansion expansion = new ConduitPlaceholderExpansion(getPluginMeta().getVersion());
         expansion.register();
-        getSLF4JLogger().info("Registered PlaceholderAPI expansion.");
+        getComponentLogger().info(Component.text("Registered PlaceholderAPI expansion.", NamedTextColor.GREEN));
     }
 
     private void applyProviderOverride() {
         String override = getConfig().getString("economy.provider-override", "").trim();
         registry.setEconomyProviderOverride(override.isEmpty() ? null : override);
         if (!override.isEmpty()) {
-            getSLF4JLogger().info("Economy provider override active: '{}'.", override);
+            getComponentLogger().info(Component.text("Economy provider override active: '", NamedTextColor.AQUA)
+                    .append(Component.text(override, NamedTextColor.WHITE))
+                    .append(Component.text("'.", NamedTextColor.AQUA)));
         }
     }
 
@@ -93,7 +99,9 @@ public final class ConduitPlugin extends JavaPlugin {
         }
         int bstatsId = getConfig().getInt("metrics.bstats-id", 0);
         if (bstatsId <= 0) {
-            getSLF4JLogger().warn("Metrics enabled but metrics.bstats-id is unset; skipping bStats submission.");
+            getComponentLogger().warn(Component.text(
+                    "Metrics enabled but metrics.bstats-id is unset; skipping bStats submission.",
+                    NamedTextColor.YELLOW));
             return;
         }
         if (!isClassPresent("org.bstats.bukkit.Metrics")) {
@@ -108,7 +116,7 @@ public final class ConduitPlugin extends JavaPlugin {
             return;
         }
         new UpdateChecker(getPluginMeta().getVersion(), LATEST_RELEASE_ENDPOINT,
-                scheduler::runAsync, getSLF4JLogger()).checkAsync();
+                scheduler::runAsync, getComponentLogger()).checkAsync();
     }
 
     private boolean isPluginPresent(String name) {

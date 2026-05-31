@@ -64,4 +64,13 @@ public record SemanticVersion(int major, int minor, int patch, @NotNull String p
         if (!preRelease.isEmpty() && other.preRelease.isEmpty()) return -1;
         return preRelease.compareTo(other.preRelease);
     }
+
+    /**
+     * @return the canonical {@code major.minor.patch[-preRelease]} rendering
+     */
+    @Override
+    public @NotNull String toString() {
+        String core = major + "." + minor + "." + patch;
+        return preRelease.isEmpty() ? core : core + "-" + preRelease;
+    }
 }
