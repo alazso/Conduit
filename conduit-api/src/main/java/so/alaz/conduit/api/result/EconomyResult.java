@@ -147,4 +147,50 @@ public sealed interface EconomyResult permits
         }
         return this;
     }
+
+    /**
+     * Experimental sugar: the resulting balance, present only on {@link Success}.
+     * Named distinctly from {@link Success#newBalance()} (which is a non-optional
+     * record accessor) so it can be called on the sealed type without a cast.
+     *
+     * @return the new balance if this committed, else empty
+     */
+    @ApiStatus.Experimental
+    default @NotNull Optional<BigDecimal> committedBalance() {
+        return this instanceof Success success ? Optional.of(success.newBalance()) : Optional.empty();
+    }
+
+    /**
+     * Experimental sugar: run {@code consumer} for any non-{@link Success} outcome.
+     * Complements {@link #ifSuccess(Consumer)} so a caller can chain both arms.
+     *
+     * @param consumer the failure consumer, invoked with this result
+     * @return this result, for chaining
+     */
+    @ApiStatus.Experimental
+    default @NotNull EconomyResult ifFailure(@NotNull Consumer<EconomyResult> consumer) {
+        if (!(this instanceof Success)) {
+            consumer.accept(this);
+        }
+        return this;
+    }
+
+    /**
+     * Experimental sugar: a short, non-localized description of this outcome for
+     * logging. Not player-facing and not intended for end-user display.
+     *
+     * @return a concise human-readable summary of this result
+     */
+    @ApiStatus.Experimental
+    default @NotNull String describe() {
+        return switch (this) {
+            case Success s -> "Success: new balance " + s.newBalance() + " for " + s.account();
+            case InsufficientFunds f ->
+                    "InsufficientFunds: balance " + f.balance() + ", requested " + f.requested();
+            case AccountNotFound f -> "AccountNotFound: " + f.uuid();
+            case CurrencyNotSupported f -> "CurrencyNotSupported: " + f.currency().id();
+            case Rejected r -> "Rejected: " + r.reason();
+            case ProviderError e -> "ProviderError: " + e.message();
+        };
+    }
 }
