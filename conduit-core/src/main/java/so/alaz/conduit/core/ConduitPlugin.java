@@ -7,7 +7,6 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import so.alaz.conduit.api.Conduit;
-import so.alaz.conduit.api.economy.Economy;
 import so.alaz.conduit.core.command.ConduitCommand;
 import so.alaz.conduit.core.events.BukkitEventPublisher;
 import so.alaz.conduit.core.events.EventPublisher;
@@ -109,8 +108,9 @@ public final class ConduitPlugin extends JavaPlugin {
         if (!getConfig().getBoolean("metrics.enabled", false)) {
             return;
         }
-        this.metrics = new MetricsService(this,
-                () -> registry.getProvider(Economy.class).map(Economy::getName).orElse("none"),
+        this.metrics = new MetricsService(this, registry,
+                () -> !getConfig().getString("economy.provider-override", "").trim().isEmpty(),
+                () -> isPluginPresent("PlaceholderAPI"),
                 getConfig().getBoolean("metrics.debug", false));
         this.metrics.ready();
     }
