@@ -100,16 +100,16 @@ jobs:
           mkdir -p "$STAGING"
 
           cp "conduit-core/build/libs/conduit-core-${VERSION}.jar" \
-            "$STAGING/conduit-core-${VERSION}.jar"
+            "$STAGING/conduit-${VERSION}.jar"
           cp "conduit-api/build/libs/conduit-api-${VERSION}.jar" \
             "$STAGING/conduit-api-${VERSION}.jar"
           cp "conduit-core/build/libs/conduit-core-${VERSION}-javadoc.jar" \
-            "$STAGING/conduit-core-${VERSION}-javadoc.jar"
+            "$STAGING/conduit-${VERSION}-javadoc.jar"
           cp "conduit-api/build/libs/conduit-api-${VERSION}-javadoc.jar" \
             "$STAGING/conduit-api-${VERSION}-javadoc.jar"
 
           (cd "conduit-core/build/docs/javadoc" && \
-            zip -rq "${GITHUB_WORKSPACE}/${STAGING}/conduit-core-${VERSION}-javadoc.zip" .)
+            zip -rq "${GITHUB_WORKSPACE}/${STAGING}/conduit-${VERSION}-javadoc.zip" .)
           (cd "conduit-api/build/docs/javadoc" && \
             zip -rq "${GITHUB_WORKSPACE}/${STAGING}/conduit-api-${VERSION}-javadoc.zip" .)
 
@@ -143,11 +143,11 @@ jobs:
             echo
             echo "| File | Description |"
             echo "| --- | --- |"
-            echo "| \`conduit-core-${VERSION}.jar\` | Conduit Paper/Folia plugin (bundles the API) |"
+            echo "| \`conduit-${VERSION}.jar\` | Conduit Paper/Folia plugin (bundles the API) |"
             echo "| \`conduit-api-${VERSION}.jar\` | Standalone API library for bridge authors |"
-            echo "| \`conduit-core-${VERSION}-javadoc.jar\` | Javadoc JAR for the runtime module |"
+            echo "| \`conduit-${VERSION}-javadoc.jar\` | Javadoc JAR for the runtime module |"
             echo "| \`conduit-api-${VERSION}-javadoc.jar\` | Javadoc JAR for the API module |"
-            echo "| \`conduit-core-${VERSION}-javadoc.zip\` | Browseable HTML Javadoc for the runtime |"
+            echo "| \`conduit-${VERSION}-javadoc.zip\` | Browseable HTML Javadoc for the runtime |"
             echo "| \`conduit-api-${VERSION}-javadoc.zip\` | Browseable HTML Javadoc for the API |"
           } > "$NOTES"
 
