@@ -109,18 +109,10 @@ public final class ConduitPlugin extends JavaPlugin {
         if (!getConfig().getBoolean("metrics.enabled", false)) {
             return;
         }
-        int bstatsId = getConfig().getInt("metrics.bstats-id", 0);
-        if (bstatsId <= 0) {
-            getComponentLogger().warn(Component.text(
-                    "Metrics enabled but metrics.bstats-id is unset; skipping bStats submission.",
-                    NamedTextColor.YELLOW));
-            return;
-        }
-        if (!isClassPresent("org.bstats.bukkit.Metrics")) {
-            return;
-        }
-        this.metrics = new MetricsService(this, bstatsId,
-                () -> registry.getProvider(Economy.class).map(Economy::getName).orElse("none"));
+        this.metrics = new MetricsService(this,
+                () -> registry.getProvider(Economy.class).map(Economy::getName).orElse("none"),
+                getConfig().getBoolean("metrics.debug", false));
+        this.metrics.ready();
     }
 
     private void startUpdateChecker() {
@@ -133,15 +125,6 @@ public final class ConduitPlugin extends JavaPlugin {
 
     private boolean isPluginPresent(String name) {
         return getServer().getPluginManager().getPlugin(name) != null;
-    }
-
-    private boolean isClassPresent(String className) {
-        try {
-            Class.forName(className);
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
     }
 
     /**
