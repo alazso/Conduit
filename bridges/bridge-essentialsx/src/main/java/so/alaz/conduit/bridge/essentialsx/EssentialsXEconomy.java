@@ -29,12 +29,21 @@ import java.util.function.Supplier;
  * or idempotency API, so this bridge implements only the base economy contract.
  * EssentialsX operations are blocking, so every method is dispatched onto the
  * supplied {@link Executor} (an async worker in production).
+ *
+ * <p>EssentialsX has no transactional API, so each balance change is a
+ * read-modify-write serialized per account via {@link AccountLocks}; transfers
+ * lock both endpoints and roll back the debit if the credit fails, so a partial
+ * failure cannot destroy money. {@link Capability#ECONOMY_OFFLINE_PLAYERS} is
+ * honoured for offline players that already have an EssentialsX account;
+ * operations targeting a never-seen UUID resolve to
+ * {@link EconomyResult.AccountNotFound} rather than throwing.
  */
 public final class EssentialsXEconomy implements Economy {
 
     private final EssentialsEconomyBackend backend;
     private final Executor executor;
     private final Currency currency;
+    private final AccountLocks locks = new AccountLocks();
 
     /**
      * @param backend  the EssentialsX seam
@@ -139,12 +148,15 @@ public final class EssentialsXEconomy implements Economy {
     }
 
     private CompletableFuture<EconomyResult> depositInternal(UUID uuid, BigDecimal amount, @Nullable String reason) {
-        return async(() -> {
+        return async(() -> locks.withLock(uuid, () -> {
+            if (!backend.hasAccount(uuid)) {
+                return new EconomyResult.AccountNotFound(uuid);
+            }
             BigDecimal before = backend.balance(uuid);
             BigDecimal after = before.add(amount);
             backend.setBalance(uuid, after);
             return success(uuid, after, txn(TransactionType.DEPOSIT, uuid, amount, before, after, reason));
-        });
+        }));
     }
 
     @Override
@@ -158,7 +170,10 @@ public final class EssentialsXEconomy implements Economy {
     }
 
     private CompletableFuture<EconomyResult> withdrawInternal(UUID uuid, BigDecimal amount, @Nullable String reason) {
-        return async(() -> {
+        return async(() -> locks.withLock(uuid, () -> {
+            if (!backend.hasAccount(uuid)) {
+                return new EconomyResult.AccountNotFound(uuid);
+            }
             BigDecimal before = backend.balance(uuid);
             if (before.compareTo(amount) < 0) {
                 return new EconomyResult.InsufficientFunds(before, amount, currency);
@@ -166,15 +181,18 @@ public final class EssentialsXEconomy implements Economy {
             BigDecimal after = before.subtract(amount);
             backend.setBalance(uuid, after);
             return success(uuid, after, txn(TransactionType.WITHDRAWAL, uuid, amount, before, after, reason));
-        });
+        }));
     }
 
     @Override
     public @NotNull CompletableFuture<EconomyResult> set(@NotNull UUID uuid, @NotNull BigDecimal amount) {
-        return async(() -> {
+        return async(() -> locks.withLock(uuid, () -> {
+            if (!backend.hasAccount(uuid)) {
+                return new EconomyResult.AccountNotFound(uuid);
+            }
             backend.setBalance(uuid, amount);
             return success(uuid, amount, null);
-        });
+        }));
     }
 
     @Override
@@ -188,16 +206,39 @@ public final class EssentialsXEconomy implements Economy {
     }
 
     private CompletableFuture<EconomyResult> transferInternal(UUID from, UUID to, BigDecimal amount, @Nullable String reason) {
-        return async(() -> {
+        return async(() -> locks.withLocks(from, to, () -> {
+            if (!backend.hasAccount(from)) {
+                return new EconomyResult.AccountNotFound(from);
+            }
+            if (!backend.hasAccount(to)) {
+                return new EconomyResult.AccountNotFound(to);
+            }
             BigDecimal fromBefore = backend.balance(from);
             if (fromBefore.compareTo(amount) < 0) {
                 return new EconomyResult.InsufficientFunds(fromBefore, amount, currency);
             }
+            BigDecimal toBefore = backend.balance(to);
             BigDecimal fromAfter = fromBefore.subtract(amount);
             backend.setBalance(from, fromAfter);
-            backend.setBalance(to, backend.balance(to).add(amount));
+            try {
+                backend.setBalance(to, toBefore.add(amount));
+            } catch (RuntimeException creditFailure) {
+                // The debit already committed; roll it back so a failed credit
+                // cannot destroy money.
+                try {
+                    backend.setBalance(from, fromBefore);
+                } catch (RuntimeException rollbackFailure) {
+                    creditFailure.addSuppressed(rollbackFailure);
+                    return new EconomyResult.ProviderError(
+                            "Transfer credit to " + to + " failed and rolling back the debit from " + from
+                                    + " also failed; " + from + " may be short by " + amount, creditFailure);
+                }
+                return new EconomyResult.ProviderError(
+                        "Transfer credit to " + to + " failed; the debit from " + from + " was rolled back",
+                        creditFailure);
+            }
             return success(from, fromAfter, txn(TransactionType.TRANSFER_OUT, from, amount, fromBefore, fromAfter, reason));
-        });
+        }));
     }
 
     private <T> CompletableFuture<T> async(Supplier<T> work) {
