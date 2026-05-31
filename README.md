@@ -43,7 +43,23 @@ dependencies {
 }
 ```
 
-Grab the active economy and move some money around:
+Move some money around! The one-liner below is the beginner path. It accepts a
+player or a `UUID`, a `long` or a `BigDecimal`, and stays fully async:
+
+```java
+import so.alaz.conduit.api.Conduit;
+
+// Beginner one-liner (experimental).
+Conduit.deposit(player, 100, "daily reward")
+    .thenAccept(result -> result
+        .ifSuccess(s -> getLogger().info("New balance: " + s.newBalance()))
+        .ifFailure(r -> getLogger().warning(r.describe())));
+```
+
+The convenience surface on `Conduit` is `@ApiStatus.Experimental` for the 0.x
+line; it only delegates to the active provider and adds no behaviour. Advanced
+users keep using `Conduit.getEconomy()` or the registry directly. The robust,
+load-order-insensitive form resolves the provider explicitly:
 
 ```java
 import so.alaz.conduit.api.Conduit;
