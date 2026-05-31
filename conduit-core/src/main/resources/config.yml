@@ -7,10 +7,11 @@ update-checker:
   enabled: true
 
 metrics:
-  # Anonymous usage metrics via bStats. Disabled until a plugin id is allocated.
+  # Anonymous usage metrics and error reporting via FastStats (https://faststats.dev).
+  # The project Public ID is hardcoded in the plugin and cannot be changed here.
   enabled: false
-  # The allocated bStats plugin id (https://bstats.org). Must be > 0 to submit.
-  bstats-id: 0
+  # Verbose FastStats logging; leave false in production.
+  debug: false
 
 economy:
   # Force a specific economy provider by name, regardless of registration
