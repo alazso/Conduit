@@ -8,6 +8,7 @@ val annotationsVersion = "24.1.0"
 val junitVersion = "5.11.3"
 val assertjVersion = "3.26.3"
 val faststatsVersion = "0.23.0"
+val playerPointsVersion = "3.3.3"
 
 // Expose shared versions to subprojects via extra properties.
 extra["paperApiVersion"] = paperApiVersion
@@ -15,6 +16,7 @@ extra["annotationsVersion"] = annotationsVersion
 extra["junitVersion"] = junitVersion
 extra["assertjVersion"] = assertjVersion
 extra["faststatsVersion"] = faststatsVersion
+extra["playerPointsVersion"] = playerPointsVersion
 
 allprojects {
     group = rootProject.group
