@@ -134,22 +134,22 @@ jobs:
           STAGING="release-artifacts"
           NOTES="${RUNNER_TEMP}/release-notes.md"
 
-          cat > "$NOTES" <<EOF
-## Conduit ${VERSION}
-
-Version \`${VERSION}\` from \`gradle.properties\` (also injected into \`paper-plugin.yml\` at build time).
-
-### Artifacts
-
-| File | Description |
-| --- | --- |
-| \`Conduit-${VERSION}.jar\` | Conduit Paper/Folia plugin (bundles the API) |
-| \`conduit-api-${VERSION}.jar\` | Standalone API library for bridge authors |
-| \`conduit-core-${VERSION}-javadoc.jar\` | Javadoc JAR for the runtime module |
-| \`conduit-api-${VERSION}-javadoc.jar\` | Javadoc JAR for the API module |
-| \`conduit-core-${VERSION}-javadoc.zip\` | Browseable HTML Javadoc for the runtime |
-| \`conduit-api-${VERSION}-javadoc.zip\` | Browseable HTML Javadoc for the API |
-EOF
+          {
+            echo "## Conduit ${VERSION}"
+            echo
+            echo "Version \`${VERSION}\` from \`gradle.properties\` (also injected into \`paper-plugin.yml\` at build time)."
+            echo
+            echo "### Artifacts"
+            echo
+            echo "| File | Description |"
+            echo "| --- | --- |"
+            echo "| \`Conduit-${VERSION}.jar\` | Conduit Paper/Folia plugin (bundles the API) |"
+            echo "| \`conduit-api-${VERSION}.jar\` | Standalone API library for bridge authors |"
+            echo "| \`conduit-core-${VERSION}-javadoc.jar\` | Javadoc JAR for the runtime module |"
+            echo "| \`conduit-api-${VERSION}-javadoc.jar\` | Javadoc JAR for the API module |"
+            echo "| \`conduit-core-${VERSION}-javadoc.zip\` | Browseable HTML Javadoc for the runtime |"
+            echo "| \`conduit-api-${VERSION}-javadoc.zip\` | Browseable HTML Javadoc for the API |"
+          } > "$NOTES"
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$STAGING"/* --clobber
