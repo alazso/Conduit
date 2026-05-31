@@ -7,12 +7,17 @@ import org.junit.jupiter.api.Test;
 
 import so.alaz.conduit.api.economy.BankingEconomy;
 import so.alaz.conduit.api.economy.Economy;
+import so.alaz.conduit.api.economy.LeaderboardEconomy;
 import so.alaz.conduit.api.economy.MultiCurrencyEconomy;
-import so.alaz.conduit.core.economy.EconomyDispatcher;
+import so.alaz.conduit.api.economy.TransactionalEconomy;
+import so.alaz.conduit.api.model.SimpleCurrency;
+import so.alaz.conduit.core.economy.DispatchInvocationHandler;
 import so.alaz.conduit.core.interceptor.InterceptorBus;
 import so.alaz.conduit.core.support.RecordingEventPublisher;
 import so.alaz.conduit.core.support.TestPlugins;
 import so.alaz.conduit.testing.MockEconomy;
+
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -39,7 +44,7 @@ class ProviderRegistryEconomyTest {
         Economy first = registry.requireProvider(Economy.class);
         Economy second = registry.requireProvider(Economy.class);
 
-        assertThat(first).isInstanceOf(EconomyDispatcher.class);
+        assertThat(DispatchInvocationHandler.isDecorated(first)).isTrue();
         // Memoised: the same delegate always yields the same decorated instance.
         assertThat(first).isSameAs(second);
     }
@@ -52,12 +57,12 @@ class ProviderRegistryEconomyTest {
         BankingEconomy banking = registry.requireProvider(BankingEconomy.class);
         Economy base = registry.requireProvider(Economy.class);
 
-        assertThat(banking).isInstanceOf(EconomyDispatcher.class);
-        assertThat(((EconomyDispatcher) base).delegate()).isSameAs(provider);
-        // Base and banking views are the same memoised dispatcher (stable identity).
+        assertThat(DispatchInvocationHandler.isDecorated(banking)).isTrue();
+        assertThat(DispatchInvocationHandler.unwrap(base)).isSameAs(provider);
+        // Base and banking views are the same memoised handle (stable identity).
         assertThat(base).isSameAs(banking);
-        // The dispatcher is total: although the provider was registered only as a
-        // BankingEconomy, the returned dispatcher can be used as every economy
+        // The handle is total: although the provider was registered only as a
+        // BankingEconomy, the returned handle can be used as every economy
         // interface the delegate actually implements.
         assertThat(banking).isInstanceOf(MultiCurrencyEconomy.class);
         assertThat(((MultiCurrencyEconomy) banking).supportedCurrencies()).isNotEmpty();
@@ -70,6 +75,36 @@ class ProviderRegistryEconomyTest {
         // Registered as Economy: resolution is by registered type, so the bank
         // view must not resolve even though MockEconomy implements BankingEconomy.
         assertThat(registry.getProvider(BankingEconomy.class)).isEmpty();
+    }
+
+    @Test
+    void decorated_handle_does_not_lie_about_unsupported_interfaces() {
+        // A genuinely base-only provider: the decorated handle must report the
+        // extension interfaces as absent (instanceof is truthful), not always-true.
+        registry.register(Economy.class, new VersionedEconomy("BaseOnly", "1.0"), plugin, ServicePriority.Normal);
+
+        Economy handle = registry.requireProvider(Economy.class);
+
+        assertThat(handle).isNotInstanceOf(MultiCurrencyEconomy.class);
+        assertThat(handle).isNotInstanceOf(TransactionalEconomy.class);
+        assertThat(handle).isNotInstanceOf(BankingEconomy.class);
+        assertThat(handle).isNotInstanceOf(LeaderboardEconomy.class);
+    }
+
+    @Test
+    void builder_currency_refinement_fails_fast_on_single_currency_provider() {
+        registry.register(Economy.class, new VersionedEconomy("BaseOnly", "1.0"), plugin, ServicePriority.Normal);
+        Economy handle = registry.requireProvider(Economy.class);
+
+        // The builder is bound to the decorated handle; because the handle is
+        // honestly not a MultiCurrencyEconomy, the guard fires the friendly
+        // IllegalStateException rather than a confusing UnsupportedOperationException.
+        assertThatThrownBy(() -> handle.transaction()
+                .deposit(UUID.randomUUID(), new java.math.BigDecimal("1.00"))
+                .currency(SimpleCurrency.ofDefault("eur", "€", 2))
+                .execute())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("MultiCurrencyEconomy");
     }
 
     @Test
@@ -98,11 +133,11 @@ class ProviderRegistryEconomyTest {
         registry.setEconomyProviderOverride("Preferred");
 
         Economy active = registry.requireProvider(Economy.class);
-        assertThat(((EconomyDispatcher) active).delegate()).isSameAs(preferred);
+        assertThat(DispatchInvocationHandler.unwrap(active)).isSameAs(preferred);
 
         // Clearing the override restores priority-based selection.
         registry.setEconomyProviderOverride(null);
-        assertThat(((EconomyDispatcher) registry.requireProvider(Economy.class)).delegate()).isSameAs(high);
+        assertThat(DispatchInvocationHandler.unwrap(registry.requireProvider(Economy.class))).isSameAs(high);
     }
 
     /** Minimal economy whose required API version is configurable. */
