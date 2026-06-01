@@ -1,15 +1,14 @@
 # Conduit configuration.
-# Conduit is an economy abstraction layer; most behaviour comes from the active
+# A economy abstraction layer; most behaviour comes from the active
 # economy provider. These settings control Conduit's own runtime features.
 
 update-checker:
-  # Query GitHub on startup for a newer Conduit release and log an advisory.
+  # Query GitHub on startup for a newer Conduit release and log a notification.
   enabled: true
 
 metrics:
-  # Anonymous usage metrics and error reporting via FastStats (https://faststats.dev).
-  # The project Public ID is hardcoded in the plugin and cannot be changed here.
-  enabled: false
+  # Anonymous usage metrics and error reporting via FastStats (https://faststats.dev). To disable metrics, set this to false.
+  enabled: true
   # Verbose FastStats logging; leave false in production.
   debug: false
 
