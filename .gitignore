@@ -21,3 +21,4 @@ Thumbs.db
 # Local design notes (not published)
 CONDUIT_DESIGN.md
 ops/
+.tmp-pp/build.gradle
